@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode, ChangeEvent } from "react";
+import { useEffect, useState, ReactNode, ChangeEvent, CSSProperties } from "react";
 import { HashRouter, Routes, Route, Link, useParams } from "react-router-dom";
 import { categories, looks, jobs as startJobs, Job } from "./data";
 import { text, Lang } from "./i18n";
@@ -44,7 +44,6 @@ function Chevron(props: { up?: boolean }) {
   );
 }
 
-// Зүрх: хадгалсан бол улаан, үгүй бол хүрээтэй
 function Heart(props: { on: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill={props.on ? "#e0457b" : "none"} stroke={props.on ? "#e0457b" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -102,7 +101,7 @@ function BellIcon() {
   );
 }
 
-// Зургийг 256x256 болгож жижигрүүлнэ (хадгалах зай хэмнэхийн тулд)
+
 function resizeImage(file: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -258,7 +257,6 @@ function JobPage(props: { jobs: Job[]; lang: Lang; joinedIds: number[]; onJoin: 
       alert(t.needInfo);
       return;
     }
-    // Энд мэдээллийг серверт илгээнэ
     props.onJoin(job!.id);
     setName("");
     setPhone("");
@@ -314,11 +312,53 @@ function JobPage(props: { jobs: Job[]; lang: Lang; joinedIds: number[]; onJoin: 
 }
 
 
-function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds: number[]; savedIds: number[]; initialTab: "me" | "reg" | "saved"; onLogin: () => void; onUpdate: (changes: { name?: string; photo?: string }) => void }) {
-  const [tab, setTab] = useState<"me" | "reg" | "saved">(props.initialTab);
+const pencilStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 30,
+  height: 30,
+  borderRadius: "50%",
+  border: "1px solid var(--line)",
+  background: "var(--card)",
+  color: "var(--ink)",
+  cursor: "pointer",
+  padding: 0,
+  boxShadow: "0 1px 3px rgba(0,0,0,.18)",
+};
+
+function PencilIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds: number[]; savedIds: number[]; initialTab: "reg" | "saved" | "done"; onLogin: () => void; onUpdate: (changes: { name?: string; photo?: string }) => void }) {
+  const [tab, setTab] = useState<"reg" | "saved" | "done">(props.initialTab);
+  const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(props.user ? props.user.name : "");
-  const [nameSaved, setNameSaved] = useState(false);
+  const [doneIds, setDoneIds] = useState<number[]>([]);
   const t = text[props.lang];
+  const mn = props.lang === "mn";
+
+  
+  const doneKey = props.user ? "vol_done_" + props.user.email : "";
+  useEffect(() => {
+    try {
+      setDoneIds(doneKey ? JSON.parse(localStorage.getItem(doneKey) || "[]") : []);
+    } catch {
+      setDoneIds([]);
+    }
+  }, [doneKey]);
+
+  function toggleDone(id: number) {
+    const next = doneIds.includes(id) ? doneIds.filter((x) => x !== id) : [...doneIds, id];
+    setDoneIds(next);
+    if (doneKey) localStorage.setItem(doneKey, JSON.stringify(next));
+  }
 
   if (!props.user) {
     return (
@@ -330,7 +370,7 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
     );
   }
 
-  const ids = tab === "reg" ? props.joinedIds : tab === "saved" ? props.savedIds : [];
+  const ids = tab === "reg" ? props.joinedIds : tab === "saved" ? props.savedIds : doneIds;
   const list = props.jobs.filter((j) => ids.includes(j.id));
 
   async function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
@@ -341,52 +381,87 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
   }
 
   function saveName() {
-    if (nameInput.trim() === "") return;
-    props.onUpdate({ name: nameInput.trim() });
-    setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 2000);
+    const n = nameInput.trim();
+    setEditing(false);
+    if (n === "" || n === props.user!.name) {
+      setNameInput(props.user!.name);
+      return;
+    }
+    props.onUpdate({ name: n });
   }
 
   return (
     <main className="page">
       <Link className="back" to="/">{t.back}</Link>
-      <div className="avatar">
-        {props.user.photo ? <img src={props.user.photo} alt="" /> : props.user.name.charAt(0).toUpperCase()}
+
+    
+      <div style={{ position: "relative", width: 72, marginTop: 18 }}>
+        <div className="avatar" style={{ marginTop: 0 }}>
+          {props.user.photo ? <img src={props.user.photo} alt="" /> : props.user.name.charAt(0).toUpperCase()}
+        </div>
+        <label title={t.changePhoto} style={{ ...pencilStyle, position: "absolute", right: -6, bottom: -6 }}>
+          <PencilIcon />
+          <input type="file" accept="image/*" hidden onChange={pickPhoto} />
+        </label>
       </div>
-      <h1>{props.user.name}</h1>
+      {props.user.photo && (
+        <button className="x" style={{ width: "auto", textAlign: "left", margin: "8px 0 0", padding: 0 }} onClick={() => props.onUpdate({ photo: "" })}>
+          {t.removePhoto}
+        </button>
+      )}
+
+      
+      {editing ? (
+        <input
+          autoFocus
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          onBlur={saveName}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") saveName();
+            if (e.key === "Escape") {
+              setNameInput(props.user!.name);
+              setEditing(false);
+            }
+          }}
+          style={{ fontSize: 20, fontWeight: 600, margin: "24px 0 18px", padding: "6px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "var(--card)", color: "var(--ink)", width: "100%" }}
+        />
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h1>{props.user.name}</h1>
+          <button type="button" title={t.fullName} style={pencilStyle} onClick={() => { setNameInput(props.user!.name); setEditing(true); }}>
+            <PencilIcon />
+          </button>
+        </div>
+      )}
 
       <div className="chips tabs">
-        <button className={tab === "me" ? "chip on" : "chip"} onClick={() => setTab("me")}>{t.profile}</button>
         <button className={tab === "reg" ? "chip on" : "chip"} onClick={() => setTab("reg")}>
-          {t.registeredList} ({props.joinedIds.length})
+          {mn ? "Орж харсан түүх" : "Watch history"} ({props.joinedIds.length})
         </button>
         <button className={tab === "saved" ? "chip on" : "chip"} onClick={() => setTab("saved")}>
           {t.savedList} ({props.savedIds.length})
         </button>
+        <button className={tab === "done" ? "chip on" : "chip"} onClick={() => setTab("done")}>
+          {mn ? "Миний хийсэн сайн дурын ажил" : "My completed work"} ({doneIds.length})
+        </button>
       </div>
 
-      {tab === "me" && (
-        <div className="edit">
-          <div className="photo-row">
-            <label className="lg filebtn">
-              {t.changePhoto}
-              <input type="file" accept="image/*" hidden onChange={pickPhoto} />
-            </label>
-            {props.user.photo && (
-              <button className="lg" onClick={() => props.onUpdate({ photo: "" })}>{t.removePhoto}</button>
-            )}
-          </div>
-          <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder={t.fullName} />
-          <div className="photo-row" style={{ marginTop: 12 }}>
-            <button className="dark" onClick={saveName}>{t.save}</button>
-            {nameSaved && <span className="ok" style={{ margin: 0 }}>{t.nameSaved}</span>}
-          </div>
-        </div>
+      {list.length === 0 && (
+        <p className="meta">
+          {tab === "saved"
+            ? t.noSaved
+            : tab === "reg"
+            ? t.noRegistered
+            : mn
+            ? "Та хараахан сайн дурын ажил хийж дуусгаагүй байна. «Миний бүртгэл» табаас хийсэн ажлаа тэмдэглээрэй."
+            : "Nothing completed yet. Mark jobs as done in the My registrations tab."}
+        </p>
       )}
-      {tab !== "me" && list.length === 0 && <p className="meta">{tab === "reg" ? t.noRegistered : t.noSaved}</p>}
 
       {list.map((job) => {
         const tx = job[props.lang] || job.mn;
+        const done = doneIds.includes(job.id);
         return (
           <Link className="item" to={"/job/" + job.id} key={job.id}>
             <span className="item-ic" style={{ background: job.color || looks[job.category].color }}>
@@ -396,7 +471,20 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
               <b>{tx.title}</b>
               <span className="meta">{tx.date}</span>
             </span>
-            {tab === "reg" && <span className="tag">{t.registeredTag} ✓</span>}
+            {tab === "done" && <span className="tag">{mn ? "Хийсэн" : "Done"} ✓</span>}
+            {tab === "reg" && (
+              <button
+                className="lg"
+                style={{ height: 34, fontSize: 13, padding: "0 14px", whiteSpace: "nowrap" }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleDone(job.id);
+                }}
+              >
+                {done ? (mn ? "Хийсэн ✓" : "Done ✓") : mn ? "Хийсэн гэж тэмдэглэх" : "Mark as done"}
+              </button>
+            )}
           </Link>
         );
       })}
@@ -404,7 +492,6 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
   );
 }
 
-// ---------- Үндсэн апп ----------
 export default function App() {
   const jobs = startJobs;
   const [filter, setFilter] = useState("Бүгд");
@@ -413,19 +500,17 @@ export default function App() {
   const [lang, setLang] = useState<Lang>("mn");
   const [joinedIds, setJoinedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
-  const [menu, setMenu] = useState(false); // профайл цэс
-  const [bell, setBell] = useState(false); // мэдэгдлийн цэс
+  const [menu, setMenu] = useState(false); 
+  const [bell, setBell] = useState(false); 
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [shareJob, setShareJob] = useState<Job | null>(null);
 
- 
   const [user, setUser] = useState<User | null>(currentUser());
   const [authMode, setAuthMode] = useState<"" | "login" | "signup">("");
   const [aName, setAName] = useState("");
   const [aEmail, setAEmail] = useState("");
   const [aPass, setAPass] = useState("");
   const [aError, setAError] = useState("");
-
 
   const t = text[lang];
 
@@ -437,7 +522,6 @@ export default function App() {
       setJoinedIds([]);
     }
   }, [joinedKey]);
-
 
   const savedKey = user ? "vol_saved_" + user.email : "";
   useEffect(() => {
@@ -515,7 +599,6 @@ export default function App() {
     setAPass("");
   }
 
- 
   const shown = jobs.filter((job) => {
     const tx = job[lang] || job.mn;
     const okCategory = filter === "Бүгд" || job.category === filter;
@@ -700,7 +783,7 @@ export default function App() {
                 user={user}
                 joinedIds={joinedIds}
                 savedIds={savedIds}
-                initialTab="me"
+                initialTab="reg"
                 onLogin={() => openAuth("login")}
                 onUpdate={updateUser}
               />

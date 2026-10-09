@@ -1,8 +1,7 @@
-
 export interface User {
   name: string;
   email: string;
-  photo?: string; 
+  photo?: string;
 }
 
 const USERS = "vol_users";
@@ -48,7 +47,6 @@ export async function login(email: string, password: string): Promise<User | nul
 export function logout() {
   localStorage.removeItem(SESSION);
 }
-
 
 export function updateProfile(email: string, changes: { name?: string; photo?: string }): User | null {
   const users = readUsers();

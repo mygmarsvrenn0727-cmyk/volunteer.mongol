@@ -141,6 +141,8 @@ export const text = {
     changePhoto: "Change photo",
     removePhoto: "Remove photo",
     nameSaved: "Saved ✓",
+        myWork: "Миний сайн дурын ажил",
+    noWork: "Та одоогоор ямар ч сайн дурын ажилд бүртгүүлээгүй байна",
     categories: {
       Байгаль: "Nature", Хүүхэд: "Children", Тусламж: "Aid",
       Боловсрол: "Education", Амьтан: "Animals", Бусад: "Other",
