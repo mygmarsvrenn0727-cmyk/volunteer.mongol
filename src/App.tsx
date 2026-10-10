@@ -1,4 +1,5 @@
-import { useEffect, useState, ReactNode, ChangeEvent, CSSProperties } from "react";
+
+import { useEffect, useState, ReactNode, ChangeEvent, CSSProperties, useRef } from "react";
 import { HashRouter, Routes, Route, Link, useParams } from "react-router-dom";
 import { categories, looks, jobs as startJobs, Job } from "./data";
 import { text, Lang } from "./i18n";
@@ -52,9 +53,8 @@ function Heart(props: { on: boolean }) {
   );
 }
 
-
 function Pill(props: {
-  icon: "tag" | "link";
+  icon?: "tag" | "link";
   label: string;
   active: boolean;
   options: { value: string; label: string }[];
@@ -65,7 +65,7 @@ function Pill(props: {
   return (
     <div className="dd">
       <button className={props.active ? "pill act" : "pill"} onClick={() => setOpen(!open)}>
-        <Icon name={props.icon} />
+        {props.icon && <Icon name={props.icon} />}
         <span>{props.label}</span>
         <Chevron up={open} />
       </button>
@@ -101,7 +101,6 @@ function BellIcon() {
   );
 }
 
-
 function resizeImage(file: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -122,7 +121,6 @@ function resizeImage(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
 
 function ShareModal(props: { job: Job; lang: Lang; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -229,15 +227,19 @@ function ShareModal(props: { job: Job; lang: Lang; onClose: () => void }) {
   );
 }
 
-
 function JobPage(props: { jobs: Job[]; lang: Lang; joinedIds: number[]; onJoin: (id: number) => void; userName: string; savedIds: number[]; onToggleSave: (id: number) => void; onShare: (job: Job) => void }) {
   const { id } = useParams();
   const [name, setName] = useState(props.userName);
   const [phone, setPhone] = useState("");
   const t = text[props.lang];
 
-  useEffect(() => window.scrollTo(0, 0), [id]);
-  useEffect(() => setName(props.userName), [props.userName]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  useEffect(() => {
+    setName(props.userName);
+  }, [props.userName]);
 
   const job = props.jobs.find((j) => j.id === Number(id));
   if (!job) {
@@ -294,7 +296,15 @@ function JobPage(props: { jobs: Job[]; lang: Lang; joinedIds: number[]; onJoin: 
       {job.url ? (
         <>
           {joined && <p className="ok">✓ {t.registeredTag}</p>}
-          <a className="dark big-btn" href={job.url} target="_blank" rel="noreferrer" onClick={() => props.onJoin(job.id)}>
+          <a
+            className="dark big-btn"
+            href={job.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              if (job) props.onJoin(job.id);
+            }}
+          >
             {joined ? t.openForm : t.register + " ↗"}
           </a>
         </>
@@ -311,6 +321,511 @@ function JobPage(props: { jobs: Job[]; lang: Lang; joinedIds: number[]; onJoin: 
   );
 }
 
+function GamesHub(props: { lang: Lang; user: User | null }) {
+  const [selectedGame, setSelectedGame] = useState<"merge" | "wordle" | null>(null);
+  const isMn = props.lang === "mn";
+
+  if (selectedGame === "wordle") {
+    return <VolunteerWordleGame lang={props.lang} user={props.user} onBack={() => setSelectedGame(null)} />;
+  }
+
+  if (selectedGame === "merge") {
+    return <VolunteerMergeGame lang={props.lang} user={props.user} onBack={() => setSelectedGame(null)} />;
+  }
+
+  return (
+    <main className="page" style={{ maxWidth: 800, margin: "0 auto", paddingBottom: 40 }}>
+      <Link className="back" to="/">{isMn ? "← Буцах" : "← Back"}</Link>
+      <h1 style={{ marginTop: 12 }}>🎮 {isMn ? "Сайн дурын мини тоглоомууд" : "Volunteer Mini Games"}</h1>
+      <p className="meta">{isMn ? "Тоглоом тоглож өөрийн оноогоо өсгөн шилдэг лидерүүдийн жагсаалтад бичигдэнэ үү!" : "Play games, increase your score, and climb the leaderboard!"}</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 30 }}>
+        <div
+          onClick={() => setSelectedGame("merge")}
+          style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: 24, cursor: "pointer", transition: "transform .2s", boxShadow: "0 4px 12px rgba(0,0,0,.05)" }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🌱</div>
+          <h3 style={{ marginBottom: 8 }}>{isMn ? "Сайн дурын Төсөл Нэгтгэх (4x4)" : "Volunteer Tiles Merge (4x4)"}</h3>
+          <p className="meta" style={{ fontSize: 13 }}>{isMn ? "Ижил сайн дурын төсөл, бэлгэдлийг swipe хийж нэгтгэнэ." : "Swipe and merge matching volunteer tiles."}</p>
+        </div>
+
+        <div
+          onClick={() => setSelectedGame("wordle")}
+          style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: 24, cursor: "pointer", transition: "transform .2s", boxShadow: "0 4px 12px rgba(0,0,0,.05)" }}
+        >
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🧩</div>
+          <h3 style={{ marginBottom: 8 }}>{isMn ? "Сайн дурын Үг Сүлжээ (Wordle)" : "Volunteer Wordle (5-Letter)"}</h3>
+          <p className="meta" style={{ fontSize: 13 }}>{isMn ? "Сайн дуртай холбоотой 5 үсэгтэй нууц үгийг тааж оноо аваарай." : "Guess the 5-letter volunteer-related hidden word."}</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function VolunteerMergeGame(props: { lang: Lang; user: User | null; onBack: () => void }) {
+  const isMn = props.lang === "mn";
+  const [score, setScore] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  
+  // 4x4 board state
+  const [board, setBoard] = useState<number[][]>(() => {
+    const b = Array(4).fill(0).map(() => Array(4).fill(0));
+    addRandomTile(b);
+    addRandomTile(b);
+    return b;
+  });
+
+  const tileIcons = ["🌱", "🧒", "🤲", "📖", "🐾", "💙", "✨", "🌍"];
+  const tileColors = ["#dff5e3", "#ffe9d6", "#f9dfe9", "#e4e0fa", "#fff3c9", "#e0f2fe", "#e8e8ee", "#dff5e3"];
+
+  function addRandomTile(b: number[][]) {
+    const empty: [number, number][] = [];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (b[r][c] === 0) empty.push([r, c]);
+      }
+    }
+    if (empty.length > 0) {
+      const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+      b[r][c] = Math.random() < 0.85 ? 1 : 2;
+    }
+  }
+
+  function checkGameOver(b: number[][]): boolean {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (b[r][c] === 0) return false;
+        if (c < 3 && b[r][c] === b[r][c + 1]) return false;
+        if (r < 3 && b[r][c] === b[r + 1][c]) return false;
+      }
+    }
+    return true;
+  }
+
+  function slide(row: number[]): { newRow: number[]; gained: number } {
+    let arr = row.filter(v => v !== 0);
+    let gained = 0;
+    let newRow: number[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      if (i + 1 < arr.length && arr[i] === arr[i + 1]) {
+        let mergedVal = arr[i] + 1;
+        newRow.push(mergedVal);
+        gained += mergedVal * 2;
+        i++;
+      } else {
+        newRow.push(arr[i]);
+      }
+    }
+    while (newRow.length < 4) newRow.push(0);
+    return { newRow, gained };
+  }
+
+  function move(direction: "left" | "right" | "up" | "down") {
+    if (gameOver) return;
+    let newBoard = board.map(row => [...row]);
+    let totalGained = 0;
+    let moved = false;
+
+    if (direction === "left" || direction === "right") {
+      for (let r = 0; r < 4; r++) {
+        let row = [...newBoard[r]];
+        if (direction === "right") row.reverse();
+        const { newRow, gained } = slide(row);
+        let finalRow = direction === "right" ? newRow.reverse() : newRow;
+        if (JSON.stringify(newBoard[r]) !== JSON.stringify(finalRow)) moved = true;
+        newBoard[r] = finalRow;
+        totalGained += gained;
+      }
+    } else {
+      for (let c = 0; c < 4; c++) {
+        let col = [newBoard[0][c], newBoard[1][c], newBoard[2][c], newBoard[3][c]];
+        if (direction === "down") col.reverse();
+        const { newRow, gained } = slide(col);
+        let finalCol = direction === "down" ? newRow.reverse() : newRow;
+        for (let r = 0; r < 4; r++) {
+          if (newBoard[r][c] !== finalCol[r]) moved = true;
+          newBoard[r][c] = finalCol[r];
+        }
+        totalGained += gained;
+      }
+    }
+
+    if (moved) {
+      addRandomTile(newBoard);
+      setBoard(newBoard);
+      const newScore = score + totalGained;
+      setScore(newScore);
+      if (checkGameOver(newBoard)) {
+        setGameOver(true);
+      }
+    }
+  }
+
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!touchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartRef.current.x;
+    const dy = t.clientY - touchStartRef.current.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 30) move("right");
+      else if (dx < -30) move("left");
+    } else {
+      if (dy > 30) move("down");
+      else if (dy < -30) move("up");
+    }
+    touchStartRef.current = null;
+  }
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") move("left");
+      if (e.key === "ArrowRight") move("right");
+      if (e.key === "ArrowUp") move("up");
+      if (e.key === "ArrowDown") move("down");
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [board, gameOver, score]);
+
+  const [leaderboard, setLeaderboard] = useState<{ name: string; score: number }[]>(() => {
+    try {
+      const saved = localStorage.getItem("vol_merge_scores");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (props.user && score > 0) {
+      const uName = props.user.name;
+      const updated = leaderboard.map(p => p.name === uName ? { ...p, score: Math.max(p.score, score) } : p);
+      if (!updated.some(p => p.name === uName)) {
+        updated.push({ name: uName, score });
+      }
+      updated.sort((a, b) => b.score - a.score);
+      const top10 = updated.slice(0, 10);
+      setLeaderboard(top10);
+      localStorage.setItem("vol_merge_scores", JSON.stringify(top10));
+    }
+  }, [score]);
+
+  function restartGame() {
+    const b = Array(4).fill(0).map(() => Array(4).fill(0));
+    addRandomTile(b);
+    addRandomTile(b);
+    setBoard(b);
+    setScore(0);
+    setGameOver(false);
+  }
+
+  return (
+    <main className="page" style={{ maxWidth: 900, margin: "0 auto", paddingBottom: 40 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button className="back" onClick={props.onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          {isMn ? "← Тоглоомын цэс рүү буцах" : "← Back to Games"}
+        </button>
+        <button onClick={() => setShowHelp(true)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--line)", background: "var(--card)", cursor: "pointer", fontWeight: 700 }}>
+          ?
+        </button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, flexWrap: "wrap", gap: 20 }}>
+        <div>
+          <h1>🌱 {isMn ? "Сайн дурын Төсөл Нэгтгэх (4x4)" : "Volunteer Tiles Merge (4x4)"}</h1>
+          <p className="meta">{isMn ? "Swipe хийж эсвэл сумтай товчлуураар ижил дүрсүүдийг нэгтгэнэ!" : "Swipe or use arrow keys to match tiles!"}</p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--line)", padding: "8px 16px", borderRadius: 12, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "gray" }}>SCORE</div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>{score}</div>
+          </div>
+          <button className="dark" onClick={restartGame}>
+            {isMn ? "Дахин эхлэх" : "Restart"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 24, marginTop: 24, alignItems: "start" }}>
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ background: "var(--card)", padding: 24, borderRadius: 16, border: "1px solid var(--line)", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 75px)", gap: 10 }}>
+            {board.map((row, r) =>
+              row.map((val, c) => (
+                <div
+                  key={`${r}-${c}`}
+                  style={{
+                    width: 75,
+                    height: 75,
+                    borderRadius: 12,
+                    background: val > 0 ? tileColors[(val - 1) % tileColors.length] : "var(--line)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: val > 0 ? 32 : 0,
+                    fontWeight: 700,
+                    transition: "transform 0.1s ease",
+                  }}
+                >
+                  {val > 0 ? tileIcons[(val - 1) % tileIcons.length] : ""}
+                </div>
+              ))
+            )}
+          </div>
+
+          {gameOver && (
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.8)", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, color: "#fff" }}>
+              <h2>{isMn ? "Тоглоом дууслаа!" : "Game Over!"}</h2>
+              <p>{isMn ? `Таны оноо: ${score}` : `Your Score: ${score}`}</p>
+              <button className="dark" onClick={restartGame} style={{ background: "#fff", color: "#000", fontWeight: 700, padding: "10px 24px" }}>
+                {isMn ? "Дахин тоглох (Play Again)" : "Play Again"}
+              </button>
+            </div>
+          )}
+
+          <p className="meta" style={{ textAlign: "center", fontSize: 12, marginTop: 16 }}>
+            {isMn ? "Дэлгэц дээр swipe хийх эсвэл гарын сумнуудаар тоглоно." : "Swipe on screen or use keyboard arrow keys."}
+          </p>
+        </div>
+
+        <div style={{ background: "var(--card)", padding: 16, borderRadius: 16, border: "1px solid var(--line)" }}>
+          <h3 style={{ fontSize: 16, marginBottom: 12, borderBottom: "1px solid var(--line)", paddingBottom: 8 }}>
+            🏆 {isMn ? "Шилдэг оролцогчид (Top 10)" : "Top 10 Leaderboard"}
+          </h3>
+          {leaderboard.length === 0 ? (
+            <p className="meta" style={{ fontSize: 13, padding: "10px 0" }}>{isMn ? "Одоогоор оноо бүртгэгдээгүй байна." : "No scores recorded yet."}</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+              {leaderboard.map((p, idx) => (
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="meta">{idx + 1}. {p.name}</span>
+                  <b style={{ fontSize: 12 }}>{p.score.toLocaleString()}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showHelp && (
+        <div className="modal" onClick={() => setShowHelp(false)}>
+          <div className="box" onClick={(e) => e.stopPropagation()}>
+            <h2>{isMn ? "Хэрхэн тоглох вэ?" : "How to play"}</h2>
+            <p style={{ margin: "14px 0", lineHeight: 1.5, fontSize: 14 }}>
+              {isMn
+                ? "Дэлгэц дээр баруун, зүүн, дээш, доош swipe хийж ижил дүрсүүдийг хооронд нь мөргөлдүүлэн нэгтгээрэй. Ижил дүрсүүд нийлэхэд оноо өсч шат ахина."
+                : "Swipe left, right, up, or down to merge matching volunteer tiles and grow your score!"}
+            </p>
+            <button className="dark full" onClick={() => setShowHelp(false)}>Got it</button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function VolunteerWordleGame(props: { lang: Lang; user: User | null; onBack: () => void }) {
+  const isMn = props.lang === "mn";
+  const targetWord = "YOUTH";
+  const [guesses, setGuesses] = useState<string[]>([]);
+  const [currentGuess, setCurrentGuess] = useState("");
+  const [gameOver, setGameOver] = useState(false);
+  const [won, setWon] = useState(false);
+  const [score, setScore] = useState(150);
+  const [showHelp, setShowHelp] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const [leaderboard, setLeaderboard] = useState<{ name: string; score: number }[]>(() => {
+    try {
+      const saved = localStorage.getItem("vol_wordle_scores");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (won && props.user) {
+      const uName = props.user.name;
+      const updated = leaderboard.map(p => p.name === uName ? { ...p, score: Math.max(p.score, score) } : p);
+      if (!updated.some(p => p.name === uName)) {
+        updated.push({ name: uName, score: score });
+      }
+      updated.sort((a, b) => b.score - a.score);
+      const top10 = updated.slice(0, 10);
+      setLeaderboard(top10);
+      localStorage.setItem("vol_wordle_scores", JSON.stringify(top10));
+    }
+  }, [won]);
+
+  function handleKey(key: string) {
+    if (gameOver) return;
+    setErrorMsg("");
+    if (key === "ENTER") {
+      if (currentGuess.length !== 5) {
+        setErrorMsg(isMn ? "5 үсэг бүтэн бичнэ үү!" : "Type 5 letters!");
+        return;
+      }
+      
+      const newGuesses = [...guesses, currentGuess];
+      setGuesses(newGuesses);
+      if (currentGuess === targetWord) {
+        setWon(true);
+        setGameOver(true);
+      } else if (newGuesses.length >= 6) {
+        setGameOver(true);
+      }
+      setCurrentGuess("");
+    } else if (key === "BACK") {
+      setCurrentGuess(currentGuess.slice(0, -1));
+    } else {
+      if (currentGuess.length < 5 && /^[A-Z]$/.test(key)) {
+        setCurrentGuess(currentGuess + key);
+      }
+    }
+  }
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Enter") handleKey("ENTER");
+      else if (e.key === "Backspace") handleKey("BACK");
+      else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toUpperCase());
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [currentGuess, gameOver]);
+
+  return (
+    <main className="page" style={{ maxWidth: 900, margin: "0 auto", paddingBottom: 40 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button className="back" onClick={props.onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          {isMn ? "← Тоглоомын цэс рүү буцах" : "← Back to Games"}
+        </button>
+        <button onClick={() => setShowHelp(true)} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--line)", background: "var(--card)", cursor: "pointer", fontWeight: 700 }}>
+          ?
+        </button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, flexWrap: "wrap", gap: 20 }}>
+        <div>
+          <h1>🧩 {isMn ? "Сайн дурын Үг Сүлжээ (Wordle)" : "Volunteer Wordle (5-Letter)"}</h1>
+          <p className="meta">{isMn ? "Сайн дуртай холбоотой 5 үсэгтэй үгийг таагаарай!" : "Guess the 5-letter volunteer-related word!"}</p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--line)", padding: "8px 16px", borderRadius: 12, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "gray" }}>SCORE</div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>{score}</div>
+          </div>
+          <button className="dark" onClick={() => { setGuesses([]); setCurrentGuess(""); setGameOver(false); setWon(false); setErrorMsg(""); }}>
+            {isMn ? "Дахин эхлэх" : "Restart"}
+          </button>
+        </div>
+      </div>
+
+      {errorMsg && <div style={{ color: "#ef4444", fontWeight: 600, marginTop: 8, fontSize: 13 }}>{errorMsg}</div>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 24, marginTop: 24, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", background: "var(--card)", padding: 24, borderRadius: 16, border: "1px solid var(--line)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+            {Array.from({ length: 6 }).map((_, rIdx) => {
+              const guess = guesses[rIdx] || (rIdx === guesses.length ? currentGuess : "");
+              return (
+                <div key={rIdx} style={{ display: "flex", gap: 8 }}>
+                  {Array.from({ length: 5 }).map((_, cIdx) => {
+                    const char = guess[cIdx] || "";
+                    let bg = "transparent";
+                    let border = "2px solid var(--line)";
+                    let color = "var(--ink)";
+                    
+                    if (rIdx < guesses.length) {
+                      if (targetWord[cIdx] === char) {
+                        bg = "#22c55e"; color = "#fff"; border = "2px solid #22c55e";
+                      } else if (targetWord.includes(char)) {
+                        bg = "#eab308"; color = "#fff"; border = "2px solid #eab308";
+                      } else {
+                        bg = "#64748b"; color = "#fff"; border = "2px solid #64748b";
+                      }
+                    }
+                    return (
+                      <div key={cIdx} style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, borderRadius: 8, background: bg, border: border, color: color }}>
+                        {char}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+
+          {gameOver && (
+            <div style={{ marginBottom: 16, textAlign: "center" }}>
+              <h3 style={{ color: won ? "#22c55e" : "#ef4444" }}>
+                {won ? (isMn ? "🎉 Баяр хүргэе! Та үгийг зөв таалаа!" : "🎉 You Won!") : (isMn ? "😔 Тоглоом дууслаа. Зөв үг: YOUTH" : "😔 Game Over. Word was: YOUTH")}
+              </h3>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%", maxWidth: 360 }}>
+            {["Q W E R T Y U I O P".split(" "), "A S D F G H J K L".split(" "), ["Z", "X", "C", "V", "B", "N", "M", "BACK", "ENTER"]].map((row, rIdx) => (
+              <div key={rIdx} style={{ display: "flex", justifyContent: "center", gap: 4 }}>
+                {row.map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => handleKey(key === "BACK" ? "BACK" : key === "ENTER" ? "ENTER" : key)}
+                    style={{ padding: key.length > 1 ? "10px 10px" : "10px 11px", background: key === "ENTER" ? "var(--ink)" : "var(--line)", border: "none", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 11, color: key === "ENTER" ? "var(--bg)" : "var(--ink)" }}
+                  >
+                    {key === "BACK" ? "⌫" : key}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: "var(--card)", padding: 16, borderRadius: 16, border: "1px solid var(--line)" }}>
+          <h3 style={{ fontSize: 16, marginBottom: 12, borderBottom: "1px solid var(--line)", paddingBottom: 8 }}>
+            🏆 {isMn ? "Шилдэг оролцогчид (Top 10)" : "Top 10 Leaderboard"}
+          </h3>
+          {leaderboard.length === 0 ? (
+            <p className="meta" style={{ fontSize: 13, padding: "10px 0" }}>{isMn ? "Одоогоор оноо бүртгэгдээгүй байна." : "No scores recorded yet."}</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+              {leaderboard.map((p, idx) => (
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="meta">{idx + 1}. {p.name}</span>
+                  <b style={{ fontSize: 12 }}>{p.score.toLocaleString()}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showHelp && (
+        <div className="modal" onClick={() => setShowHelp(false)}>
+          <div className="box" onClick={(e) => e.stopPropagation()}>
+            <h2>{isMn ? "Хэрхэн тоглох вэ?" : "How to play"}</h2>
+            <p style={{ margin: "14px 0", lineHeight: 1.5, fontSize: 14 }}>
+              {isMn
+                ? "Сайн дурын үйл ажиллагаатай холбоотой 5 үсэгтэй нууц үгийг 6 оролдлогоор тааж олоорой. Үсэг зөв байрлалд байвал 🟩 ногоон, байрлал буруу ч үгэнд орсон бол 🟨 шар өнгөтэй харагдана."
+                : "Guess the 5-letter volunteer-related word in 6 tries. Green means correct letter and spot, yellow means correct letter in wrong spot."}
+            </p>
+            <button className="dark full" onClick={() => setShowHelp(false)}>Got it</button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
 
 const pencilStyle: CSSProperties = {
   display: "flex",
@@ -344,7 +859,6 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
   const t = text[props.lang];
   const mn = props.lang === "mn";
 
-  
   const doneKey = props.user ? "vol_done_" + props.user.email : "";
   useEffect(() => {
     try {
@@ -394,7 +908,6 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
     <main className="page">
       <Link className="back" to="/">{t.back}</Link>
 
-    
       <div style={{ position: "relative", width: 72, marginTop: 18 }}>
         <div className="avatar" style={{ marginTop: 0 }}>
           {props.user.photo ? <img src={props.user.photo} alt="" /> : props.user.name.charAt(0).toUpperCase()}
@@ -410,7 +923,6 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
         </button>
       )}
 
-      
       {editing ? (
         <input
           autoFocus
@@ -429,7 +941,17 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h1>{props.user.name}</h1>
-          <button type="button" title={t.fullName} style={pencilStyle} onClick={() => { setNameInput(props.user!.name); setEditing(true); }}>
+          <button
+            type="button"
+            title={t.fullName}
+            style={pencilStyle}
+            onClick={() => {
+              if (props.user) {
+                setNameInput(props.user.name);
+                setEditing(true);
+              }
+            }}
+          >
             <PencilIcon />
           </button>
         </div>
@@ -495,6 +1017,7 @@ function Profile(props: { jobs: Job[]; lang: Lang; user: User | null; joinedIds:
 export default function App() {
   const jobs = startJobs;
   const [filter, setFilter] = useState("Бүгд");
+  const [sortOrder, setSortOrder] = useState("Бүгд");
   const [search, setSearch] = useState("");
   const [dark, setDark] = useState(false);
   const [lang, setLang] = useState<Lang>("mn");
@@ -599,12 +1122,18 @@ export default function App() {
     setAPass("");
   }
 
-  const shown = jobs.filter((job) => {
-    const tx = job[lang] || job.mn;
-    const okCategory = filter === "Бүгд" || job.category === filter;
-    const okSearch = (tx.title + tx.place).toLowerCase().includes(search.toLowerCase());
-    return okCategory && okSearch;
-  });
+  const shown = jobs
+    .filter((job) => {
+      const tx = job[lang] || job.mn;
+      const okCategory = filter === "Бүгд" || job.category === filter;
+      const okSearch = (tx.title + tx.place).toLowerCase().includes(search.toLowerCase());
+      return okCategory && okSearch;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "Шинэ" || sortOrder === "New") return b.id - a.id;
+      if (sortOrder === "Хуучин" || sortOrder === "Old") return a.id - b.id;
+      return 0;
+    });
 
   return (
     <HashRouter>
@@ -614,6 +1143,10 @@ export default function App() {
           <div className="search">
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.search} />
           </div>
+          <Link to="/games" className="lg" style={{ textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, height: 36 }}>
+            <span>🎮</span>
+            <span>{lang === "mn" ? "Тоглоом" : "Games"}</span>
+          </Link>
           {user ? (
             <>
             <div className="acc">
@@ -686,21 +1219,37 @@ export default function App() {
 
         <Routes>
           <Route
+            path="/games"
+            element={<GamesHub lang={lang} user={user} />}
+          />
+          <Route
             path="/"
             element={
               <main>
                 <h1>{t.title}</h1>
 
-                <div className="filters">
+                <div className="filters" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <Pill
+                    label={sortOrder === "Бүгд" ? (lang === "mn" ? "Бүгд" : "All") : sortOrder === "Шинэ" ? (lang === "mn" ? "Шинэ" : "New") : (lang === "mn" ? "Хуучин" : "Old")}
+                    active={sortOrder !== "Бүгд"}
+                    selected={sortOrder}
+                    onSelect={setSortOrder}
+                    options={[
+                      { value: "Бүгд", label: lang === "mn" ? "Бүгд" : "All" },
+                      { value: "Шинэ", label: lang === "mn" ? "Шинэ" : "New" },
+                      { value: "Хуучин", label: lang === "mn" ? "Хуучин" : "Old" },
+                    ]}
+                  />
+
                   <Pill
                     icon="tag"
-                    label={filter === "Бүгд" ? t.anyCategory : t.categories[filter]}
+                    label={filter === "Бүгд" ? t.anyCategory : t.categories[filter] || filter}
                     active={filter !== "Бүгд"}
                     selected={filter}
                     onSelect={setFilter}
                     options={[
                       { value: "Бүгд", label: t.anyCategory },
-                      ...categories.map((c) => ({ value: c, label: t.categories[c] })),
+                      ...categories.map((c) => ({ value: c, label: t.categories[c] || c })),
                     ]}
                   />
                 </div>
@@ -713,8 +1262,8 @@ export default function App() {
                     const joined = joinedIds.includes(job.id);
                     return (
                       <Link className="card" to={"/job/" + job.id} key={job.id}>
-                        <div className="ph" style={{ background: job.color || looks[job.category].color }}>
-                          {job.emoji || looks[job.category].emoji}
+                        <div className="ph" style={{ background: job.color || looks[job.category]?.color || "#f0f0f0" }}>
+                          {job.emoji || looks[job.category]?.emoji || "📌"}
                           <div className="ph-actions">
                             <button
                               className="heart"
@@ -852,3 +1401,4 @@ export default function App() {
     </HashRouter>
   );
 }
+
